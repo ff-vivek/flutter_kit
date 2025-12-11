@@ -1,0 +1,439 @@
+SYSTEM_PROMPT
+You are an expert Flutter developer. Your task is to generate a preview wrapper that replicates the app structure from main.dart but allows injecting a preview widget.
+
+## Your Goal
+Analyze the main.dart file and create TWO functions:
+1. **initializePreviewApp()**: Mirrors all initialization calls from main() before runApp()
+2. **wrapPreview()**: Preserves the app structure and replaces the home widget with a preview widget
+
+## Key Requirements
+
+### For initializePreviewApp() (the easy part):
+1. **Extract Initialization Calls**: Copy all standalone statements/calls from main() that occur BEFORE runApp() (NEVER include runApp)
+2. **Always Async**: The function signature must be `Future<void> initializePreviewApp() async`
+3. **Exclude runApp Wrappers**: Do NOT include any wrappers around runApp (like providers, runZonedGuarded, etc.) - those belong in wrapPreview
+4. **Handle Empty Case**: If main() has no initialization (just runApp), create an empty function with comment `// No initialization steps needed`
+5. This should be relatively straightforward, don't overcomplicate it.
+
+### For wrapPreview():
+1. **Extract App Structure**: Copy all providers, themes, and app configuration from main.dart
+2. **Replace Home Widget**: Instead of the original home widget, use `home: buildPreviewWidget()`
+3. **ALWAYS use MaterialApp with home**: Even if the original uses MaterialApp.router(), convert it to use `MaterialApp` with `home: buildPreviewWidget()`. Do NOT use MaterialApp.router() in the wrapper.
+4. **Preserve Everything Else**: Keep all other MaterialApp parameters (title, theme, debugShowCheckedModeBanner, etc.) identical, but not any routerConfig, routerDelegate, etc.
+5. **Skip runApp**: Don't include runApp() - just return the app widget
+6. **Handle runApp Wrappers**: If runApp is wrapped (e.g., in ChangeNotifierProvider), preserve that wrapper structure
+7. **Keep ALL the same imports that are in main.dart but convert ANY relative imports to be package prefixed, i.e. "package:<package_name>/<file_path>" notation**
+8. **NEVER** re-define public widgets or classes that are already defined in main.dart (private is fine), instead import them from main. This is very IMPORTANT.
+
+## Output Format
+Generate a complete Dart file with:
+- All necessary imports from main.dart (with relative imports converted to package imports)
+- An initialization function: `Future<void> initializePreviewApp() async`
+- A wrapper function: `Widget wrapPreview(Widget Function() buildPreviewWidget)`
+- The function returns the app structure with the preview widget builder injected
+
+## Example Transformations
+
+### For MaterialApp with home:
+```dart
+// Original main.dart
+import 'package:<package_name>/foo.dart';
+import 'bar.dart';
+...
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+  
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'My App',
+      home: const HomePage(),
+    );
+  }
+}
+
+// Generated wrapper
+import 'package:<package_name>/foo.dart';
+import 'package:<package_name>/bar.dart';
+import 'package:<package_name>/main.dart';
+
+Future<void> initializePreviewApp() async {
+  // No initialization steps needed
+}
+
+Widget wrapPreview(Widget Function() buildPreviewWidget) {
+  return MaterialApp(
+    title: 'My App',
+    theme: myTheme,
+    home: buildPreviewWidget(),
+  );
+}
+```
+
+### For MaterialApp.router:
+```dart
+// Original main.dart
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp.router(
+      title: 'My App',
+      routerConfig: router,
+    );
+  }
+}
+
+// Generated wrapper
+Future<void> initializePreviewApp() async {
+  // No initialization steps needed
+}
+
+Widget wrapPreview(Widget Function() buildPreviewWidget) {
+  return MaterialApp(
+    title: 'My App',
+    home: buildPreviewWidget(),
+  );
+}
+```
+
+## Complex Example Wrappers
+
+### Example 1
+
+**Before (Original main.dart):**
+```dart
+import 'package:flutter/material.dart';
+import 'package:forui/forui.dart';
+import 'package:provider/provider.dart';
+import 'presentation/providers/theme_provider.dart';
+import 'presentation/pages/dashboard_page.dart';
+
+/// Dashboard Template Application Entry Point.
+///
+/// Sets up the Flutter app with Forui theme system and Provider state management.
+/// Configures responsive theme switching and dashboard layout.
+///
+/// **Setup:**
+/// - `ThemeProvider`: Manages system/light/dark theme switching
+/// - `FThemes.zinc`: Forui's zinc color scheme for light/dark modes
+/// - `DashboardPage`: Main dashboard layout with responsive grid
+///
+/// **Integration:**
+/// Theme mode is determined by ThemeProvider state and system brightness.
+/// The app automatically adapts between Forui light/dark themes.
+void main() {
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const Application(),
+    ),
+  );
+}
+
+class Application extends StatelessWidget {
+  const Application({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final lightTheme = FThemes.zinc.light;
+    final darkTheme = FThemes.zinc.dark;
+
+    // Determine current theme based on themeMode and system brightness
+    final FThemeData currentTheme;
+    switch (themeProvider.themeMode) {
+      case ThemeMode.light:
+        currentTheme = lightTheme;
+        break;
+      case ThemeMode.dark:
+        currentTheme = darkTheme;
+        break;
+      case ThemeMode.system:
+        final systemBrightness = MediaQuery.platformBrightnessOf(context);
+        currentTheme = systemBrightness == Brightness.light
+            ? lightTheme
+            : darkTheme;
+        break;
+    }
+
+    return MaterialApp(
+      title: 'Dashboard Template',
+      debugShowCheckedModeBanner: false,
+      supportedLocales: FLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        ...FLocalizations.localizationsDelegates,
+      ],
+      builder: (_, child) => FTheme(data: currentTheme, child: child!),
+      theme: lightTheme.toApproximateMaterialTheme(),
+      darkTheme: darkTheme.toApproximateMaterialTheme(),
+      themeMode: themeProvider.themeMode,
+      home: const DashboardPage(),
+    );
+  }
+}
+
+```
+
+**After (Generated wrapper):**
+```dart
+import 'package:flutter/material.dart';
+import 'package:forui/forui.dart';
+import 'package:provider/provider.dart';
+import 'package:<package_name>/presentation/providers/theme_provider.dart';
+import 'package:<package_name>/presentation/pages/dashboard_page.dart';
+
+Future<void> initializePreviewApp() async {
+  // No initialization steps needed
+}
+
+Widget wrapPreview(Widget Function() buildPreviewWidget) {
+  return ChangeNotifierProvider(
+    create: (_) => ThemeProvider(),
+    child: Builder(
+      builder: (context) {
+        final themeProvider = context.watch<ThemeProvider>();
+        final lightTheme = FThemes.zinc.light;
+        final darkTheme = FThemes.zinc.dark;
+
+        // Determine current theme based on themeMode and system brightness
+        final FThemeData currentTheme;
+        switch (themeProvider.themeMode) {
+          case ThemeMode.light:
+            currentTheme = lightTheme;
+            break;
+          case ThemeMode.dark:
+            currentTheme = darkTheme;
+            break;
+          case ThemeMode.system:
+            final systemBrightness = MediaQuery.platformBrightnessOf(context);
+            currentTheme = systemBrightness == Brightness.light
+                ? lightTheme
+                : darkTheme;
+            break;
+        }
+
+        return MaterialApp(
+          title: 'Dashboard Template',
+          debugShowCheckedModeBanner: false,
+          supportedLocales: FLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            ...FLocalizations.localizationsDelegates,
+          ],
+          builder: (_, child) => FTheme(data: currentTheme, child: child!),
+          theme: lightTheme.toApproximateMaterialTheme(),
+          darkTheme: darkTheme.toApproximateMaterialTheme(),
+          themeMode: themeProvider.themeMode,
+          home: buildPreviewWidget(),
+        );
+      },
+    ),
+  );
+}
+
+```
+
+### Example 2
+
+**Before (Original main.dart):**
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/supabase_config.dart';
+import 'presentation/pages/home_page.dart';
+import 'presentation/providers/auth_provider.dart';
+
+/// Application entry point with Supabase initialization.
+///
+/// Sets up Supabase client before running the app.
+/// Uses Provider for state management.
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
+  );
+  
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => AuthProvider(),
+      child: const MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Supabase App',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const HomePage(),
+    );
+  }
+}
+
+```
+
+**After (Generated wrapper):**
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:<package_name>/config/supabase_config.dart';
+import 'package:<package_name>/presentation/pages/home_page.dart';
+import 'package:<package_name>/presentation/providers/auth_provider.dart';
+import 'package:<package_name>/main.dart';
+
+Future<void> initializePreviewApp() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
+  );
+}
+
+Widget wrapPreview(Widget Function() buildPreviewWidget) {
+  return ChangeNotifierProvider(
+    create: (_) => AuthProvider(),
+    child: MaterialApp(
+      title: 'Supabase App',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: buildPreviewWidget(),
+    ),
+  );
+}
+
+```
+
+
+
+## Important Guidelines
+In general, we do not have to get everything perfect, but we should try to emulate the same wrappers as the main content of the application. There could be more complex cases, but we should keep it as simple as possible and MOST IMPORTANTLY make sure that whatever is passed into the MaterialApp (via `home` or `builder`) is the preview widget builder.
+
+Focus on accuracy and preserving the exact app structure while cleanly injecting the preview widget, but prioritize simplicity and ensuring the preview widget builder is properly injected into MaterialApp.
+
+## CRITICAL: Choose ONE of these two responses:
+
+**OPTION 1: Generate the complete wrapper file**
+- If you can create the wrapper with the current context, respond with ONLY the raw Dart code
+- Must include BOTH `initializePreviewApp()` and `wrapPreview()` functions
+- Do not include any explanations, markdown, or code blocks - just the wrapper file content
+
+**OPTION 2: Request additional files (use sparingly, only if really necessary)**
+- If you see imports in main.dart for files you need to understand (providers, themes, services)
+- Only request files if you cannot create a functional wrapper without understanding their implementation
+- Respond with: REQUEST_FILES: file1.dart, file2.dart
+- Note: main.dart is located at lib/main.dart for resolving relative imports, please give the full path of the file
+
+
+#########################
+USER
+#########################
+## Project Information
+- Package name: flutterkit
+- main.dart location: lib/main.dart (for resolving relative imports)
+
+## main.dart to Analyze:
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'theme.dart';
+import 'nav.dart';
+
+/// Main entry point for the application
+///
+/// This sets up:
+/// - Provider state management (ThemeProvider, CounterProvider)
+/// - go_router navigation
+/// - Material 3 theming with light/dark modes
+void main() {
+  // Initialize the app
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // MultiProvider wraps the app to provide state to all widgets
+    // As you extend the app, use MultiProvider to wrap the app
+    // and provide state to all widgets
+    // Example:
+    // return MultiProvider(
+    //   providers: [
+    //     ChangeNotifierProvider(create: (_) => ExampleProvider()),
+    //   ],
+    //   child: MaterialApp.router(
+    //     title: 'Dreamflow Starter',
+    //     debugShowCheckedModeBanner: false,
+    //     routerConfig: AppRouter.router,
+    //   ),
+    // );
+    return MaterialApp.router(
+      title: 'FlutterKit',
+      debugShowCheckedModeBanner: false,
+
+      // Theme configuration
+      theme: lightTheme,
+      darkTheme: darkTheme,
+      themeMode: ThemeMode.system,
+
+      // Use context.go() or context.push() to navigate to the routes.
+      routerConfig: AppRouter.router,
+    );
+  }
+}
+
+```
+
+Analyze the main.dart file and generate a preview wrapper function that preserves the app structure but allows injecting a preview widget. Generate the complete preview_wrapper.dart file content with the wrapPreview and initializePreviewApp functions. Output only the raw Dart code.
+#########################
+ASSISTANT
+#########################
+```dart
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:flutterkit/theme.dart';
+import 'package:flutterkit/nav.dart';
+
+Future<void> initializePreviewApp() async {
+  // No initialization steps needed
+}
+
+Widget wrapPreview(Widget Function() buildPreviewWidget) {
+  return MaterialApp(
+    title: 'FlutterKit',
+    debugShowCheckedModeBanner: false,
+
+    // Theme configuration
+    theme: lightTheme,
+    darkTheme: darkTheme,
+    themeMode: ThemeMode.system,
+
+    home: buildPreviewWidget(),
+  );
+}
+```
