@@ -233,6 +233,70 @@ class HomePage extends StatelessWidget {
             ),
           ),
 
+          // Dropbar Showcase
+          UkSection(
+            variant: UkSectionVariant.muted,
+            child: UkContainer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const UkHeading('Dropbar', level: 2),
+                  const SizedBox(height: 12),
+                  UkCard(
+                    child: Row(
+                      children: [
+                        UkButton(
+                          label: 'Products',
+                          variant: UkButtonVariant.text,
+                          onPressed: () {
+                            showUkDropbar(
+                              context,
+                              title: 'Browse products',
+                              child: Builder(builder: (context) {
+                                final cs = Theme.of(context).colorScheme;
+                                return Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: [
+                                    _dropTile(context, Icons.phone_iphone, 'Mobile', 'SDKs, examples', cs),
+                                    _dropTile(context, Icons.web, 'Web', 'Widgets, charts', cs),
+                                    _dropTile(context, Icons.storage_outlined, 'Data', 'Storage, streams', cs),
+                                    _dropTile(context, Icons.security_outlined, 'Security', 'Auth, rules', cs),
+                                  ],
+                                );
+                              }),
+                            );
+                          },
+                        ),
+                        UkButton(
+                          label: 'Solutions',
+                          variant: UkButtonVariant.text,
+                          onPressed: () {
+                            showUkDropbar(
+                              context,
+                              title: 'By industry',
+                              child: Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  _dropTile(context, Icons.shopping_bag_outlined, 'E‑commerce', 'Catalogs, checkout', Theme.of(context).colorScheme),
+                                  _dropTile(context, Icons.health_and_safety_outlined, 'Health', 'Records, analytics', Theme.of(context).colorScheme),
+                                  _dropTile(context, Icons.school_outlined, 'Education', 'Courses, progress', Theme.of(context).colorScheme),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        const Spacer(),
+                        const UkButton(label: 'Contact sales', variant: UkButtonVariant.outline),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           // Buttons Showcase
           UkSection(
             child: UkContainer(
@@ -1080,17 +1144,77 @@ class HomePage extends StatelessWidget {
                   children: [
                     const UkHeading('Carousel & Lightbox', level: 2),
                     const SizedBox(height: 12),
-                    UkCarousel(
-                      height: 200,
-                      items: images
-                          .map(
-                            (p) => ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(p, fit: BoxFit.cover),
+                    Builder(builder: (context) {
+                      final controller = PageController();
+                      int current = 0;
+                      return StatefulBuilder(builder: (context, setState) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: SizedBox(
+                            height: 200,
+                            child: UkSlidenav(
+                              onPrevious: () {
+                                final i = (current - 1).clamp(0, images.length - 1);
+                                setState(() => current = i);
+                                controller.animateToPage(i, duration: const Duration(milliseconds: 220), curve: Curves.easeOutCubic);
+                              },
+                              onNext: () {
+                                final i = (current + 1).clamp(0, images.length - 1);
+                                setState(() => current = i);
+                                controller.animateToPage(i, duration: const Duration(milliseconds: 220), curve: Curves.easeOutCubic);
+                              },
+                              child: PageView(
+                                controller: controller,
+                                onPageChanged: (i) => setState(() => current = i),
+                                children: images
+                                    .map(
+                                      (p) => Image.asset(p, fit: BoxFit.cover),
+                                    )
+                                    .toList(),
+                              ),
                             ),
-                          )
-                          .toList(),
-                    ),
+                          ),
+                        );
+                      });
+                    }),
+                    const SizedBox(height: 16),
+                    // Thumbnav demo using a custom PageView controller
+                    Builder(builder: (context) {
+                      final controller = PageController();
+                      int current = 0;
+                      return StatefulBuilder(builder: (context, setState) {
+                        return UkCard(
+                          header: Text('Thumbnav', style: Theme.of(context).textTheme.titleMedium),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                height: 140,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: PageView(
+                                    controller: controller,
+                                    onPageChanged: (i) => setState(() => current = i),
+                                    children: images
+                                        .map((p) => Image.asset(p, fit: BoxFit.cover))
+                                        .toList(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              UkThumbnav(
+                                images: images.map((p) => AssetImage(p) as ImageProvider).toList(),
+                                selectedIndex: current,
+                                onChanged: (i) {
+                                  setState(() => current = i);
+                                  controller.animateToPage(i, duration: const Duration(milliseconds: 220), curve: Curves.easeOutCubic);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      });
+                    }),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 12,
@@ -1115,6 +1239,60 @@ class HomePage extends StatelessWidget {
                   ],
                 );
               }),
+            ),
+          ),
+
+          // Search & Sortable Showcase
+          UkSection(
+            variant: UkSectionVariant.muted,
+            child: UkContainer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const UkHeading('Search & Sortable', level: 2),
+                  const SizedBox(height: 12),
+                  UkCard(
+                    header: Text('Search (Autocomplete)', style: Theme.of(context).textTheme.titleMedium),
+                    child: UkSearchAutocomplete<String>(
+                      options: const [
+                        'Dashboard', 'Components', 'Lists', 'Tables', 'Navbar', 'Dropdown', 'Lightbox', 'Carousel', 'Upload', 'Skeleton', 'Filter Grid', 'Iconnav',
+                      ],
+                      displayStringForOption: (s) => s,
+                      onSelected: (s) => UkToast.show(context, message: 'Selected "$s"', type: UkToastType.success),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Builder(builder: (context) {
+                    var items = <String>['Design tokens', 'Components', 'Patterns', 'Guidelines'];
+                    return UkCard(
+                      header: Text('Sortable list (drag to reorder)', style: Theme.of(context).textTheme.titleMedium),
+                      child: StatefulBuilder(builder: (context, setState) {
+                        return UkSortableList<String>(
+                          items: items,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          itemBuilder: (context, item, i) {
+                            final cs = Theme.of(context).colorScheme;
+                            return Row(
+                              children: [
+                                Icon(Icons.drag_indicator, color: cs.onSurfaceVariant),
+                                const SizedBox(width: 8),
+                                Expanded(child: Text(item, style: Theme.of(context).textTheme.bodyMedium)),
+                              ],
+                            );
+                          },
+                          onReorder: (oldIndex, newIndex) {
+                            setState(() {
+                              if (newIndex > oldIndex) newIndex -= 1;
+                              final item = items.removeAt(oldIndex);
+                              items.insert(newIndex, item);
+                            });
+                          },
+                        );
+                      }),
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
 
@@ -1447,6 +1625,32 @@ Widget _filterTile(BuildContext context, IconData icon, String title, String sub
           subtitle,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
         ),
+      ],
+    ),
+  );
+}
+
+Widget _dropTile(BuildContext context, IconData icon, String title, String subtitle, ColorScheme cs) {
+  return Container(
+    width: 200,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: cs.primary),
+            const SizedBox(width: 8),
+            Expanded(child: Text(title, style: Theme.of(context).textTheme.titleSmall)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(subtitle, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant)),
       ],
     ),
   );
